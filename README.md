@@ -1,7 +1,7 @@
 ![logo](images/logo.png)
 
 #### SerialPort to WebSocket
-本项目是串口转WebSocket的转发程序。
+本项目是串口转WebSocket的转发程序
 
 windows用户可以从此下载可执行文件：下载
 
