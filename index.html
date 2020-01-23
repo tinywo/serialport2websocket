@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=utf-8>
+    <meta name=viewport content="width=device-width,initial-scale=1">
+    <title>串口转网络中间件</title>
+    <link rel="stylesheet" href="static/css/h5ui.min.css">
+    <link rel="stylesheet" href="static/css/example.min.css">
+    <script>
+        const electron = require('electron');
+        const ipcRenderer = electron.ipcRenderer;
+        let plug = '';
+        init();
+
+        function init() {
+            getActivePorts();
+            getIpAddress();
+        }
+
+        function refrush() {
+            getActivePorts();
+            getIpAddress();
+        }
+
+        function getActivePorts() {
+            ipcRenderer.send('getActivePorts')
+        }
+
+        function getIpAddress() {
+            ipcRenderer.send('getIpAddress')
+        }
+
+        function launch() {
+            ipcRenderer.send('startService', plug);
+            var btnlaunch = document.getElementById("launch");
+            btnlaunch.innerText = "停止";
+            btnlaunch.style.backgroundColor = "#e2e2e2";
+            btnlaunch.removeAttribute("onclick");
+            btnlaunch.setAttribute("onclick", "stop()")
+        }
+
+        function stop() {
+            ipcRenderer.send('stopService');
+            var btnlaunch = document.getElementById("launch");
+            btnlaunch.style.backgroundColor = "#f7f7f7";
+            btnlaunch.innerText = "启动";
+            btnlaunch.removeAttribute("onclick");
+            btnlaunch.setAttribute("onclick", "launch()");
+            // ipcRenderer.removeListener('showSerialData');
+        }
+
+        //  监听主进程返回消息
+        ipcRenderer.on('backActivePorts', function (event, args) {
+            var select = document.getElementById("ports");
+            select.options.length = 0;  //  删掉所有option
+            for (var i = 0; i < args.length; i++) {
+                var option = document.createElement("option");
+                option.setAttribute("value", args[i]);
+                option.appendChild(document.createTextNode(args[i]));
+                select.appendChild(option)
+            }
+            select.options[0].selected = true;  //  选中第一个option
+            plug = select.options[0].value;
+        });
+
+        ipcRenderer.on('backIpAddress', function (event, args) {
+            document.getElementById("ip").value = args;
+        });
+
+        ipcRenderer.on('serviceStatus', function (event, args) {
+            alert(args)
+        });
+        ipcRenderer.on('showSerialData', function (event, args) {
+            var serialdata = document.getElementById("serialdata");
+            serialdata.value = serialdata.value + args + '\n';
+        });
+        ipcRenderer.on('showSocketData', function (event, args) {
+            var socketdata = document.getElementById("socketdata");
+            socketdata.value = socketdata.value + args + '\n';
+        });
+
+        function selectPlug() {
+            var ports = document.getElementById("ports");
+            plug = ports.options[ports.selectedIndex].value;
+        }
+
+    </script>
+</head>
+<body>
+<div class="h5ui-page" style="border-top: 2px solid #515a6e;padding-top: 7px;background-color: #fff;">
+    <div class="h5ui-tab">
+        <ul class="tab-item">
+            <li class="active">
+                <a href="#tab-1" style="border-bottom-color: #515a6e;color: #515a6e;">端口配置</a>
+            </li>
+            <li>
+                <a href="#tab-2" style="border-bottom-color: #515a6e;color: #515a6e;">收发内容</a>
+            </li>
+        </ul>
+    </div>
+    <div class="tab-content">
+        <div id="tab-1" class="tab-pane active">
+            <div class="h5ui-group">
+                <div class="h5ui-form">
+                    <label for="ports" class="h5ui-form-label" style="left: 0;">端口</label>
+                    <div class="h5ui-select">
+                        <select name="ports" id="ports" onchange="selectPlug()">
+                            <option value="">请刷新</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="h5ui-form">
+                    <label for="ip" class="h5ui-form-label">IP</label>
+                    <input type="text" id="ip" class="h5ui-form-input" placeholder="请刷新">
+                </div>
+            </div>
+            <div style="padding-left: 20px;padding-right: 20px;padding-bottom: 18px;">
+                <button class="h5ui-btn h5ui-btn_primary" style="background-color: #515a6e;margin-bottom: 10px;"
+                        onclick="refrush();">刷新
+                </button>
+                <button class="h5ui-btn h5ui-btn_default" id="launch" onclick="launch()">启动</button>
+            </div>
+        </div>
+        <div id="tab-2" class="tab-pane">
+            <div class="h5ui-group" style="padding-top: 8px;margin-bottom: 0;padding-bottom: 5px;">
+                <div class="h5ui-form">
+                    <label for="serialdata" class="h5ui-form-label">串口数据</label>
+                    <textarea class="h5ui-form-input" name="" id="serialdata" rows="4" style="height: 102px;"
+                              placeholder="串口服务未启动"></textarea>
+                </div>
+                <div class="h5ui-form">
+                    <label for="socketdata" class="h5ui-form-label">网络数据</label>
+                    <textarea class="h5ui-form-input" name="" id="socketdata" rows="4" style="height: 102px;"
+                              placeholder="网络服务未启动"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="static/js/jquery.min.js"></script>
+<script>
+    if (typeof module === 'object') {
+        window.jQuery = window.$ = module.exports;
+    }
+</script>
+<script src="static/js/h5ui.min.js"></script>
+</body>
+</html>

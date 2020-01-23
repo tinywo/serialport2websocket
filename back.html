@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=utf-8>
+    <meta name=viewport content="width=device-width,initial-scale=1">
+    <title>端口转网络中间件</title>
+    <link rel="stylesheet" href="static/css/h5ui.min.css">
+    <link rel="stylesheet" href="static/css/example.min.css">
+    <script>
+        const electron = require('electron');
+        const ipcRenderer = electron.ipcRenderer;
+
+        function getActivePorts() {
+            ipcRenderer.send('getActivePorts')
+        }
+
+        //  监听主进程返回消息
+        ipcRenderer.on('backActivePorts', function (event, args) {
+
+            var select = document.getElementById("ports");
+            select.options.length = 0;  //  删掉所有option
+            for (var i = 0; i < args.length; i++) {
+                var option = document.createElement("option");
+                option.setAttribute("value", args[i]);
+                option.appendChild(document.createTextNode(args[i]));
+                select.appendChild(option)
+            }
+            select.options[0].selected = true;  //  选中第一个option
+        });
+
+        function sendTypeOne() {
+            //向主进程发送消息
+            ipcRenderer.send('MainMsgFromRender', 'hahaha')
+        }
+
+        // 监听主进程返回的消息
+        ipcRenderer.on('RenderMsgFromMain', function (event, arg) {
+            alert(arg)
+        })
+
+        // 设置监听
+        ipcRenderer.on('main-process-messages', function (event, message) {
+            alert(message)
+        })
+
+        const remote = require('electron').remote
+
+        function sendTypeTwo() {
+            //alert(remote.app.getVersion())
+            alert(remote.getGlobal('sharedObject').newTel)
+        }
+
+        function sendTypeThree() {
+            remote.getGlobal('sharedObject').newTel = '1111'
+            alert('赋值成功，请按上一按钮进行验证')
+        }
+
+        function writeFile() {
+            var fs = require('fs')
+            fs.writeFile('input.txt', 'zps,1234566', function (err) {
+                if (err) {
+                    alert(err)
+                } else {
+                    alert('write success')
+                }
+            })
+        }
+
+        function readFile() {
+            var fs = require('fs')
+            fs.readFile('input.txt', function (err, data) {
+                if (err) throw err
+
+                var sp = data.toString().split(',')
+
+                if (sp != null && sp.length > 0) {
+                    var strp = ''
+                    sp.forEach(function (str) {
+                        strp = strp + str
+                    })
+
+                    alert(strp)
+                }
+            })
+        }
+
+        function nextPageBtn() {
+            window.location.href = "second.html?parm=123456"
+        }
+
+    </script>
+</head>
+<body>
+<div class="h5ui-page">
+    <div class="h5ui-tab">
+        <ul class="tab-item">
+            <li class="active">
+                <a href="#tab-1">串口配置</a>
+            </li>
+            <li>
+                <a href="#tab-2">WS配置</a>
+            </li>
+        </ul>
+    </div>
+    <div class="tab-content">
+        <div id="tab-1" class="tab-pane active">
+            <div style="background-color: #ffffff;">
+                <div class="clearfix">
+                    <div style="width: calc(100% - 90px);float: left;">
+                        <div class="h5ui-form">
+                            <div class="h5ui-select select-cell">
+                                <select name="ports" id="ports">
+                                    <option value="">请刷新</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="width: 90px;float: left;padding-top: 2px;padding-left: 6px;padding-right: 11px;">
+                        <button class="h5ui-btn h5ui-btn_primary" onclick="getActivePorts()"
+                                style="border-radius: 0;width: 73px;min-width:73px;padding: 0;height: 40px;">刷新
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="tab-2" class="tab-pane">
+            <p>2</p>
+        </div>
+    </div>
+</div>
+<section class="ui-container">
+    <div class="ui-row-flex ui-whitespace">
+        <div class="ui-col ui-col-2">
+            <div class="tw-bg-w"><!--
+                <label for="ports">选择端口</label>
+                <div class="ui-select">
+                    <select id="ports">
+                        <option></option>
+                    </select>
+                </div>-->
+            </div>
+        </div>
+        <div class="ui-col">
+            <div class="tw-bg-w">
+                <label for="refresh">点击刷新</label>
+                <button id="refresh" class="ui-btn ui-btn-primary" onclick="getActivePorts()">刷新</button>
+            </div>
+        </div>
+    </div>
+    <div class="ui-btn-wrap">
+    </div>
+</section>
+<input type="text" placeholder="192.168.0.1">
+<br>
+<div>
+    <button id="sendTypeOne" onclick="sendTypeOne()">发送消息至main</button>
+    <label>主进程接收，进行处理后，发送给Render进程并alert出来</label>
+</div>
+
+<br>
+<div>
+    <button id="sendTypeTwo" onclick="sendTypeTwo()">global获取全局共享数据</button>
+</div>
+
+<br>
+<div>
+    <button id="sendTypeThree" onclick="sendTypeThree()">global全局共享数据赋值</button>
+</div>
+
+<br>
+<div>
+    <button id="writeFile" onclick="writeFile()">writeFile</button>
+</div>
+
+<br>
+<div>
+    <button id="readFile" onclick="readFile()">readFile</button>
+</div>
+
+<br>
+<div>
+    <button id="nextPageBtn" onclick="nextPageBtn()">跳转页面</button>
+</div>
+<script src="static/js/jquery.min.js"></script>
+<script>
+    if (typeof module === 'object') {
+        window.jQuery = window.$ = module.exports;
+    }
+</script>
+<script src="static/js/h5ui.min.js"></script>
+</body>
+</html>
