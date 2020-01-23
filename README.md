@@ -1,6 +1,5 @@
-<p style="text-align:center;">
-<img src="/images/logo.png">
-</p>
+![logo](images/logo.png)
+
 本项目是串口转WebSocket的转发程序。
 
 * PHP 版上位机
