@@ -10,23 +10,17 @@ let activePort = [];
 let plug = '';
 let host = '';
 const mysql = require('mysql');
-const connection = mysql.createConnection({
+const conn = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "root",
     database: "iot"
 });
-//const add_data={temp:11,hum:22,created:"2022-1-23 16:43:00"};
-
-var addSql = 'INSERT INTO data(Id,temp,hum,created)VALUES(0,?,?,?)';
-var addSqlParams = [11, 22, '2022-1-23 16:43:00'];
-connection.query(addSql, addSqlParams, function (err, result) {
-    if (err) {
-        console.log('[INSERT ERROR] -', err.message);
-        return;
-    }
+const addSql = 'INSERT INTO data(Id,temp,hum,created)VALUES(0,?,?,?)';
+const addSqlParams = [11, 22, '2022-1-23 16:43:00'];
+conn.query(addSql, addSqlParams, (err, result) => {
+    if (err) return console.log('[ErrorInfo]: ', err.message);
 });
-connection.end();
 //  遍历串口端口
 SerialPort.list().then(
     ports => ports.forEach(activePorts),
