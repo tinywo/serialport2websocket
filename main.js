@@ -9,6 +9,8 @@ const ipcMain = electron.ipcMain;   //  主进程
 let activePort = [];
 let plug = '';
 let host = '';
+const config = require('./util/config');
+config.electronStore();
 const mysql = require('mysql');
 const conn = mysql.createConnection({
     host: "localhost",

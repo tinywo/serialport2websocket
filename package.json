@@ -25,6 +25,7 @@
     "electron-rebuild": "^1.8.8"
   },
   "dependencies": {
+    "electron-store": "^5.1.0",
     "mysql": "^2.18.0",
     "serialport": "^8.0.5",
     "ws": "^7.2.1"
