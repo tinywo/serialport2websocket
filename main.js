@@ -1,6 +1,7 @@
 const electron = require('electron');
 const {app, BrowserWindow, Menu} = electron;
 const path = require('path');
+const img = path.join(__dirname, '/static/img');
 const url = require('url');
 const os = require('os');
 const WebSocket = require('ws');
@@ -94,7 +95,6 @@ function createWindow() {
             label: '退出',
             click: function () {
                 app.quit();
-                app.quit();//因为程序设定关闭为最小化，所以调用两次关闭，防止最大化时一次不能关闭的情况
             }
         }
     ];
@@ -102,13 +102,13 @@ function createWindow() {
     //trayIcon = path.join(__dirname, 'static');//app是选取的目录
 
     //appTray = new Tray(path.join(trayIcon, 'favicon.ico'));//app.ico是app目录下的ico文件
-    appTray = new Tray(path.join('./static/img/favicon.ico'));//app.ico是app目录下的ico文件
+    appTray = new Tray(path.join(img, 'tray.ico'));//app.ico是app目录下的ico文件
 
     //图标的上下文菜单
     const contextMenu = Menu.buildFromTemplate(trayMenuTemplate);
 
     //设置此托盘图标的悬停提示内容
-    appTray.setToolTip('我的托盘图标');
+    appTray.setToolTip();
 
     //设置此图标的上下文菜单
     appTray.setContextMenu(contextMenu);

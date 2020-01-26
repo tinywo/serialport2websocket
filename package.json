@@ -1,5 +1,5 @@
 {
-  "name": "middleware",
+  "name": "serialport2websocket",
   "version": "1.0.0",
   "description": "A minimal Electron application",
   "main": "main.js",
@@ -40,6 +40,7 @@
         "nsis",
         "zip"
       ]
-    }
+    },
+    "productName": "串口转WS中间件"
   }
 }
