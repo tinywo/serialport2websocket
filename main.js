@@ -9,6 +9,8 @@ const ipcMain = electron.ipcMain;   //  主进程
 let activePort = [];
 let plug = '';
 let host = '';
+const Tray = electron.Tray;
+let appTray = null;
 const config = require('./util/config');
 config.electronStore();
 const mysql = require('mysql');
@@ -72,6 +74,48 @@ function createWindow() {
         protocol: 'file:',
         slashes: true
     }));
+    var trayMenuTemplate = [
+        {
+            label: '设置',
+            click: function () {
+            } //打开相应页面
+        },
+        {
+            label: '帮助',
+            click: function () {
+            }
+        },
+        {
+            label: '关于',
+            click: function () {
+            }
+        },
+        {
+            label: '退出',
+            click: function () {
+                app.quit();
+                app.quit();//因为程序设定关闭为最小化，所以调用两次关闭，防止最大化时一次不能关闭的情况
+            }
+        }
+    ];
+    //系统托盘图标目录
+    //trayIcon = path.join(__dirname, 'static');//app是选取的目录
+
+    //appTray = new Tray(path.join(trayIcon, 'favicon.ico'));//app.ico是app目录下的ico文件
+    appTray = new Tray(path.join('./static/img/favicon.ico'));//app.ico是app目录下的ico文件
+
+    //图标的上下文菜单
+    const contextMenu = Menu.buildFromTemplate(trayMenuTemplate);
+
+    //设置此托盘图标的悬停提示内容
+    appTray.setToolTip('我的托盘图标');
+
+    //设置此图标的上下文菜单
+    appTray.setContextMenu(contextMenu);
+    //单击右下角小图标显示应用
+    appTray.on('click', function () {
+        win.show();
+    });
 
     //  打开开发者工具
     //win.webContents.openDevTools();
