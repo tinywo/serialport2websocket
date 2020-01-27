@@ -108,7 +108,7 @@ function createWindow() {
     const contextMenu = Menu.buildFromTemplate(trayMenuTemplate);
 
     //设置此托盘图标的悬停提示内容
-    appTray.setToolTip();
+    appTray.setToolTip('次奥物联网');
 
     //设置此图标的上下文菜单
     appTray.setContextMenu(contextMenu);
