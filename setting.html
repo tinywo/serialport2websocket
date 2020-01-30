@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset=utf-8>
+    <meta name=viewport content="width=device-width,initial-scale=1">
+    <title>设置</title>
+    <link rel="stylesheet" href="static/css/h5ui.min.css">
+    <link rel="stylesheet" href="static/css/example.min.css">
+    <style>
+        .h5ui-group {
+            margin-bottom: 5px;
+        }
+    </style>
+    <script>
+        const electron = require('electron');
+        const ipcRenderer = electron.ipcRenderer;
+        let plug = '';
+        init();
+
+        function init() {
+            getActivePorts();
+            getIpAddress();
+        }
+
+        function refrush() {
+            getActivePorts();
+            getIpAddress();
+        }
+
+        function getActivePorts() {
+            ipcRenderer.send('getActivePorts')
+        }
+
+        function getIpAddress() {
+            ipcRenderer.send('getIpAddress')
+        }
+
+        function launch() {
+            ipcRenderer.send('startService', plug);
+            var btnlaunch = document.getElementById("launch");
+            btnlaunch.innerText = "停止";
+            btnlaunch.style.backgroundColor = "#e2e2e2";
+            btnlaunch.removeAttribute("onclick");
+            btnlaunch.setAttribute("onclick", "stop()")
+        }
+
+        function stop() {
+            ipcRenderer.send('stopService');
+            var btnlaunch = document.getElementById("launch");
+            btnlaunch.style.backgroundColor = "#f7f7f7";
+            btnlaunch.innerText = "启动";
+            btnlaunch.removeAttribute("onclick");
+            btnlaunch.setAttribute("onclick", "launch()");
+            // ipcRenderer.removeListener('showSerialData');
+        }
+
+        //  监听主进程返回消息
+        ipcRenderer.on('backActivePorts', function (event, args) {
+            var select = document.getElementById("ports");
+            select.options.length = 0;  //  删掉所有option
+            for (var i = 0; i < args.length; i++) {
+                var option = document.createElement("option");
+                option.setAttribute("value", args[i]);
+                option.appendChild(document.createTextNode(args[i]));
+                select.appendChild(option)
+            }
+            select.options[0].selected = true;  //  选中第一个option
+            plug = select.options[0].value;
+        });
+
+        ipcRenderer.on('backIpAddress', function (event, args) {
+            document.getElementById("ip").value = args;
+        });
+
+        ipcRenderer.on('serviceStatus', function (event, args) {
+            alert(args)
+        });
+        ipcRenderer.on('showSerialData', function (event, args) {
+            var serialdata = document.getElementById("serialdata");
+            serialdata.value = serialdata.value + args + '\n';
+        });
+        ipcRenderer.on('showSocketData', function (event, args) {
+            var socketdata = document.getElementById("socketdata");
+            socketdata.value = socketdata.value + args + '\n';
+        });
+
+        function selectPlug() {
+            var ports = document.getElementById("ports");
+            plug = ports.options[ports.selectedIndex].value;
+        }
+
+    </script>
+</head>
+<body>
+<div class="h5ui-page" style="border-top: 2px solid #515a6e;padding-top: 7px;background-color: #fff;">
+    <div class="h5ui-group">
+        <h5 class="h5ui-group_title">串口设置</h5>
+        <div class="h5ui-form">
+            <label for="ports" class="h5ui-form-label" style="left: 0;">波特率</label>
+            <div class="h5ui-select">
+                <select name="ports" id="ports" onchange="selectPlug()">
+                    <option value="">9600</option>
+                    <option value="">19200</option>
+                    <option value="">38400</option>
+                    <option value="">57600</option>
+                    <option value="">115200</option>
+                    <option value="">请刷新</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="h5ui-group">
+        <h5 class="h5ui-group_title">MySQL设置</h5>
+        <div class="h5ui-form">
+            <label for="ip" class="h5ui-form-label">主机</label>
+            <input type="text" id="ip" class="h5ui-form-input" placeholder="请刷新">
+        </div>
+        <div class="h5ui-form">
+            <label for="ip" class="h5ui-form-label">端口</label>
+            <input type="text" id="ip" class="h5ui-form-input" placeholder="请刷新">
+        </div>
+        <div class="h5ui-form">
+            <label for="ip" class="h5ui-form-label">用户名</label>
+            <input type="text" id="ip" class="h5ui-form-input" placeholder="请刷新">
+        </div>
+        <div class="h5ui-form">
+            <label for="ip" class="h5ui-form-label">密码</label>
+            <input type="text" id="ip" class="h5ui-form-input" placeholder="请刷新">
+        </div>
+        <div class="h5ui-form">
+            <label for="ip" class="h5ui-form-label">数据库</label>
+            <input type="text" id="ip" class="h5ui-form-input" placeholder="请刷新">
+        </div>
+        <div class="h5ui-form">
+            <label for="ip" class="h5ui-form-label">表名</label>
+            <input type="text" id="ip" class="h5ui-form-input" placeholder="请刷新">
+        </div>
+    </div>
+    <div class="h5ui-group">
+        <h5 class="h5ui-group_title">服务设置</h5>
+        <div class="h5ui-form h5ui-switch">
+            <input type="checkbox" name="touchid" id="iphone" value="1">
+            <label for="iphone" class="h5ui-switch_radius"></label>
+            <p class="h5ui-switch-text">MySQL</p>
+        </div>
+        <div class="h5ui-form h5ui-switch">
+            <input type="checkbox" name="touchid" id="iphone" value="1">
+            <label for="iphone" class="h5ui-switch_radius"></label>
+            <p class="h5ui-switch-text">WebSocket</p>
+        </div>
+        <div class="h5ui-form h5ui-switch">
+            <input type="checkbox" name="touchid" id="applepay" checked="checked" value="1">
+            <label for="applepay" class="h5ui-switch_radius"></label>
+            <p class="h5ui-switch-text">TCP</p>
+        </div>
+        <div class="h5ui-form h5ui-switch">
+            <input type="checkbox" name="touchid" id="itunes" checked="checked" value="1">
+            <label for="itunes" class="h5ui-switch_radius"></label>
+            <p class="h5ui-switch-text">UDP</p>
+        </div>
+    </div>
+</div>
+<script src="static/js/jquery.min.js"></script>
+<script>
+    if (typeof module === 'object') {
+        window.jQuery = window.$ = module.exports;
+    }
+</script>
+<script src="static/js/h5ui.min.js"></script>
+</body>
+</html>

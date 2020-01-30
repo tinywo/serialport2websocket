@@ -54,6 +54,27 @@ function getIPAddress() {
     return ip;
 }
 
+let newWin;
+
+function openSetting() {
+    if (newWin != null) { // 判断是否已打开
+        newWin.show();
+        newWin.on('closed', () => {
+            newWin = null
+        })
+    } else {
+        newWin = new BrowserWindow({
+            width: 360,
+            height: 634,
+            parent: win
+        });
+        newWin.loadURL(path.join('file:', __dirname, 'setting.html'));
+        newWin.on('closed', () => {
+            newWin = null
+        })
+    }
+}
+
 let win;
 
 function createWindow() {
@@ -78,7 +99,8 @@ function createWindow() {
     var trayMenuTemplate = [
         {
             label: '设置',
-            click: function () {
+            click: function (item) {
+                openSetting(item);
             } //打开相应页面
         },
         {
