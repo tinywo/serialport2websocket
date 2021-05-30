@@ -34,7 +34,7 @@
     "electron-store": "^5.1.0",
     "mysql": "^2.18.0",
     "serialport": "^8.0.5",
-    "ws": "^7.2.1"
+    "ws": "^7.4.6"
   },
   "win": {
     "icon": "static/img/favicon.ico"
