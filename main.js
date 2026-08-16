@@ -1,238 +1,317 @@
-const electron = require('electron');
-const {app, BrowserWindow, Menu} = electron;
+const { app, BrowserWindow, Menu, Tray, ipcMain } = require('electron');
 const path = require('path');
-const img = path.join(__dirname, '/static/img');
-const url = require('url');
 const os = require('os');
-const WebSocket = require('ws');
-const SerialPort = require('serialport');   //定义SerialPort类
-const ipcMain = electron.ipcMain;   //  主进程
+const { EventEmitter } = require('events');
+const { WebSocketServer } = require('ws');
+const { SerialPort } = require('serialport');
+
+const config = require('./util/config');
+
+config.electronStore();
+
+const trayIconPath = path.join(__dirname, 'static/img/tray.ico');
+
 let activePort = [];
 let plug = '';
 let host = '';
-const Tray = electron.Tray;
 let appTray = null;
-const config = require('./util/config');
-config.electronStore();
-const mysql = require('mysql');
-const conn = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "root",
-    database: "iot"
-});
-const addSql = 'INSERT INTO data(Id,temp,hum,created)VALUES(0,?,?,?)';
-const addSqlParams = [11, 22, '2022-1-23 16:43:00'];
-conn.query(addSql, addSqlParams, (err, result) => {
-    if (err) return console.log('[ErrorInfo]: ', err.message);
-});
-//  遍历串口端口
-SerialPort.list().then(
-    ports => ports.forEach(activePorts),
-    err => console.error(err)
-);
+let win = null;
+let newWin = null;
+let port = null;
+let wss = null;
+let serialEventEmitter = null;
 
-//  可用的端口
-function activePorts(item, index) {
-    activePort[index] = item.path;
-    plug = activePort[0];
+async function refreshActivePorts() {
+    try {
+        const ports = await SerialPort.list();
+        activePort = ports.map((item) => item.path);
+        plug = activePort[0] || '';
+    } catch (error) {
+        console.error('[SerialPort:list]', error.message);
+        activePort = [];
+        plug = '';
+    }
+
+    return activePort;
 }
 
-//  获取本机IP
 function getIPAddress() {
-    let interfaces = os.networkInterfaces();
-    for (let devName in interfaces) {
-        let iface = interfaces[devName];
-        for (let i = 0; i < iface.length; i++) {
-            let alias = iface[i];
-            if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal) {
-                var ip = alias.address;
+    const interfaces = os.networkInterfaces();
+
+    for (const iface of Object.values(interfaces)) {
+        if (!iface) {
+            continue;
+        }
+
+        for (const alias of iface) {
+            const isIPv4 = alias.family === 'IPv4' || alias.family === 4;
+
+            if (isIPv4 && alias.address !== '127.0.0.1' && !alias.internal) {
+                host = alias.address;
+                return host;
             }
         }
     }
-    host = ip;
-    return ip;
+
+    host = '127.0.0.1';
+    return host;
 }
 
-let newWin;
-
-function openSetting() {
-    if (newWin != null) { // 判断是否已打开
-        newWin.show();
-        newWin.on('closed', () => {
-            newWin = null
-        })
-    } else {
-        newWin = new BrowserWindow({
-            width: 360,
-            height: 634,
-            parent: win
-        });
-        newWin.loadURL(path.join('file:', __dirname, 'setting.html'));
-        newWin.on('closed', () => {
-            newWin = null
-        })
+function buildTray() {
+    if (appTray) {
+        return;
     }
-}
 
-let win;
-
-function createWindow() {
-    //  隐藏菜单
-    Menu.setApplicationMenu(null);
-    //  创建浏览器窗口
-    win = new BrowserWindow({
-        width: 360,
-        height: 304,
-        resizable: false,
-        webPreferences: {
-            nodeIntegration: true,
-            show: false,
-        }
-    });
-    // and load the index.html of the app.
-    win.loadURL(url.format({
-        pathname: path.join(__dirname, 'index.html'),
-        protocol: 'file:',
-        slashes: true
-    }));
-    var trayMenuTemplate = [
+    const trayMenuTemplate = [
         {
             label: '设置',
-            click: function (item) {
-                openSetting(item);
-            } //打开相应页面
+            click() {
+                openSetting();
+            }
         },
         {
             label: '帮助',
-            click: function () {
-            }
+            click() {}
         },
         {
             label: '关于',
-            click: function () {
-            }
+            click() {}
         },
         {
             label: '退出',
-            click: function () {
+            click() {
                 app.quit();
             }
         }
     ];
-    //系统托盘图标目录
-    //trayIcon = path.join(__dirname, 'static');//app是选取的目录
 
-    //appTray = new Tray(path.join(trayIcon, 'favicon.ico'));//app.ico是app目录下的ico文件
-    appTray = new Tray(path.join(img, 'tray.ico'));//app.ico是app目录下的ico文件
-
-    //图标的上下文菜单
-    const contextMenu = Menu.buildFromTemplate(trayMenuTemplate);
-
-    //设置此托盘图标的悬停提示内容
-    appTray.setToolTip('次奥物联网');
-
-    //设置此图标的上下文菜单
-    appTray.setContextMenu(contextMenu);
-    //单击右下角小图标显示应用
-    appTray.on('click', function () {
-        win.show();
-    });
-
-    //  打开开发者工具
-    //win.webContents.openDevTools();
-    // Emitted when the window is closed.
-    win.on('closed', () => {
-        // Dereference the window object, usually you would store windows
-        // in an array if your app supports multi windows, this is the time
-        // when you should delete the corresponding element.
-        win = null;
-    });
-    win.once('ready-to-show', function () {
-        win.show();
-        win.webContents.send('main-process-messages', 'main-process-messages show')
+    appTray = new Tray(trayIconPath);
+    appTray.setToolTip('串口转WS中间件');
+    appTray.setContextMenu(Menu.buildFromTemplate(trayMenuTemplate));
+    appTray.on('click', () => {
+        if (win) {
+            win.show();
+            win.focus();
+        }
     });
 }
 
-// This method will be called when Electron has finished
-// initialization and is ready to create browser windows.
-// Some APIs can only be used after this event occurs.
-app.on('ready', createWindow, () => {
-    tray = new Tray(path.join())
-});
+function getRendererPreferences() {
+    return {
+        nodeIntegration: true,
+        contextIsolation: false
+    };
+}
 
-// Quit when all windows are closed.
-app.on('window-all-closed', () => {
-    // On macOS it is common for applications and their menu bar
-    // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
+function openSetting() {
+    if (newWin) {
+        newWin.show();
+        newWin.focus();
+        return;
+    }
+
+    newWin = new BrowserWindow({
+        width: 360,
+        height: 634,
+        parent: win || undefined,
+        webPreferences: getRendererPreferences()
+    });
+
+    newWin.loadFile('setting.html');
+    newWin.on('closed', () => {
+        newWin = null;
+    });
+}
+
+function createWindow() {
+    Menu.setApplicationMenu(null);
+
+    win = new BrowserWindow({
+        width: 360,
+        height: 304,
+        resizable: false,
+        show: false,
+        webPreferences: getRendererPreferences()
+    });
+
+    win.loadFile('index.html');
+    buildTray();
+
+    win.on('closed', () => {
         win = null;
-        app.quit()
+    });
+
+    win.once('ready-to-show', () => {
+        if (win) {
+            win.show();
+        }
+    });
+}
+
+function normalizeSocketPayload(text) {
+    const rawText = String(text);
+
+    try {
+        return JSON.stringify(JSON.parse(rawText));
+    } catch (error) {
+        return rawText;
+    }
+}
+
+function closeWebSocketServer() {
+    if (!wss) {
+        return;
+    }
+
+    for (const client of wss.clients) {
+        client.close();
+    }
+
+    wss.close();
+    wss = null;
+}
+
+function closeSerialPort() {
+    return new Promise((resolve) => {
+        if (!port || !port.isOpen) {
+            port = null;
+            resolve();
+            return;
+        }
+
+        port.close((error) => {
+            if (error) {
+                console.error('[SerialPort:close]', error.message);
+            }
+
+            port = null;
+            resolve();
+        });
+    });
+}
+
+async function stopService() {
+    serialEventEmitter = null;
+    closeWebSocketServer();
+    await closeSerialPort();
+}
+
+async function startService(sender, requestedPort) {
+    await stopService();
+
+    plug = requestedPort || plug;
+    host = getIPAddress();
+
+    if (!plug) {
+        sender.send('serviceStatus', '未连接设备');
+        return;
+    }
+
+    serialEventEmitter = new EventEmitter();
+
+    try {
+        wss = new WebSocketServer({
+            port: 8000,
+            host
+        });
+    } catch (error) {
+        sender.send('serviceStatus', `WebSocket 启动失败: ${error.message}`);
+        return;
+    }
+
+    wss.on('connection', (ws) => {
+        ws.send('连接成功!');
+
+        const handlePostMsg = (msg) => {
+            if (ws.readyState === ws.OPEN) {
+                ws.send(msg);
+            }
+        };
+
+        serialEventEmitter.on('postMsg', handlePostMsg);
+        ws.on('close', () => {
+            if (serialEventEmitter) {
+                serialEventEmitter.off('postMsg', handlePostMsg);
+            }
+        });
+    });
+
+    wss.on('error', (error) => {
+        console.error('[WebSocketServer]', error.message);
+        sender.send('serviceStatus', `WebSocket 异常: ${error.message}`);
+    });
+
+    try {
+        port = new SerialPort({
+            path: plug,
+            baudRate: 115200
+        });
+    } catch (error) {
+        closeWebSocketServer();
+        sender.send('serviceStatus', `串口启动失败: ${error.message}`);
+        return;
+    }
+
+    port.on('open', () => {
+        sender.send('serviceStatus', `已启动串口: ${plug}`);
+    });
+
+    port.on('error', (error) => {
+        console.error('[SerialPort]', error.message);
+        sender.send('serviceStatus', `串口异常: ${error.message}`);
+    });
+
+    port.on('data', (data) => {
+        const serialText = data.toString();
+        const socketPayload = normalizeSocketPayload(serialText);
+
+        sender.send('showSerialData', serialText);
+        sender.send('showSocketData', socketPayload);
+
+        if (serialEventEmitter) {
+            serialEventEmitter.emit('postMsg', socketPayload);
+        }
+    });
+}
+
+app.whenReady().then(async () => {
+    getIPAddress();
+    await refreshActivePorts();
+    createWindow();
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+            createWindow();
+        }
+    });
+});
+
+app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+        app.quit();
     }
 });
 
-app.on('activate', () => {
-    // On macOS it's common to re-create a window in the app when the
-    // dock icon is clicked and there are no other windows open.
-    if (win === null) {
-        createWindow()
-    }
+app.on('before-quit', () => {
+    stopService().catch((error) => {
+        console.error('[before-quit]', error.message);
+    });
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
-ipcMain.on('getIpAddress', function (event) {
+ipcMain.on('getIpAddress', (event) => {
     event.sender.send('backIpAddress', getIPAddress());
 });
 
-ipcMain.on('getActivePorts', function (event) {
-    event.sender.send('backActivePorts', activePort)
+ipcMain.on('getActivePorts', async (event) => {
+    const ports = await refreshActivePorts();
+    event.sender.send('backActivePorts', ports);
 });
 
-ipcMain.on('startService', function (event, args) {
-        plug = args;
-        //  引入 events 模块
-        var events = require('events');
-        //  创建 eventEmitter 对象
-        SPeventEmitter = new events.EventEmitter();
-        var WebSocketServer = WebSocket.Server;
-        wss = new WebSocketServer({
-            port: 8000,
-            host: host
-        });
-        if (plug === '') {
-            event.sender.send('serviceStatus', '未连接设备');
-        } else {
-            event.sender.send('serviceStatus', '已启动串口');
-            port = new SerialPort(plug, {
-                baudRate: 115200,
-            });
-            wss.on('connection', function (ws) {
-                ws.send("连接成功!");
-                SPeventEmitter.on('postMsg', function (msg) {
-                    ws.send(msg);
-                });
-            });
-            port.on('open', function () {
-                port.on('data', function (data) {
-                    var txt = data.toString();
-                    event.sender.send('showSerialData', txt);
-                    var wstxt = JSON.parse(txt);
-                    SPeventEmitter.emit('postMsg', wstxt);
-                    event.sender.send('showSocketData', wstxt);
-                });
-            });
-        }
-    }
-);
-ipcMain.on('stopService', function (event, args) {
-    if (port.isOpen) {
-        port.close(function (err) {
-            if (err) throw err;
-            else
-                event.sender.send('serviceStatus', '已关闭串口');
-        });
-    }
-    wss.close();
+ipcMain.on('startService', async (event, args) => {
+    await startService(event.sender, args);
 });
 
+ipcMain.on('stopService', async (event) => {
+    await stopService();
+    event.sender.send('serviceStatus', '已关闭串口');
+});
