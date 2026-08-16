@@ -53,6 +53,14 @@
         ipcRenderer.on('backActivePorts', function (event, args) {
             var select = document.getElementById("ports");
             select.options.length = 0;  //  删掉所有option
+            if (!args || args.length === 0) {
+                var emptyOption = document.createElement("option");
+                emptyOption.setAttribute("value", "");
+                emptyOption.appendChild(document.createTextNode("未检测到串口"));
+                select.appendChild(emptyOption);
+                plug = '';
+                return;
+            }
             for (var i = 0; i < args.length; i++) {
                 var option = document.createElement("option");
                 option.setAttribute("value", args[i]);
